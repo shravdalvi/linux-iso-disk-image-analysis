@@ -11,9 +11,7 @@ class ChecksumAgent:
         result = {
             "agent": "Checksum",
             "calculated_sha256": None,
-            "manifest_match": False,
-            "found_in_manifest": False,
-            "success": False
+            "status": "unknown" # pass, fail, or unknown
         }
 
         if not os.path.exists(self.filepath):
@@ -23,11 +21,9 @@ class ChecksumAgent:
         sha256_hash = hashlib.sha256()
         try:
             with open(self.filepath, "rb") as f:
-                # Read and update hash string value in blocks of 4K
                 for byte_block in iter(lambda: f.read(4096), b""):
                     sha256_hash.update(byte_block)
             result["calculated_sha256"] = sha256_hash.hexdigest()
-            result["success"] = True
         except Exception as e:
             result["error"] = str(e)
             return result
@@ -39,11 +35,14 @@ class ChecksumAgent:
                 manifest = json.load(mf)
                 
             if filename in manifest:
-                result["found_in_manifest"] = True
                 expected_sha = manifest[filename]["sha256"]
                 if result["calculated_sha256"] == expected_sha:
-                    result["manifest_match"] = True
+                    result["status"] = "pass"
+                else:
+                    result["status"] = "fail"
+            else:
+                result["status"] = "unknown"
         except Exception as e:
-            result["manifest_error"] = str(e)
+            result["error"] = str(e)
 
         return result

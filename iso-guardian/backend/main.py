@@ -1,20 +1,20 @@
 import os
 import shutil
-from fastapi import FastAPI, File, UploadFile, Depends
+from fastapi import FastAPI, File, UploadFile, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app, Counter, Gauge
 from sqlalchemy.orm import Session
 
-from database import engine, get_db, Base, ISOAnalysisResult
-from agents.ingestion import IngestionAgent
-from agents.metadata import MetadataAgent
-from agents.checksum import ChecksumAgent
-from agents.filesystem import FilesystemAgent
-from agents.alerting import AlertingAgent
+from backend.database import engine, get_db, Base, ScanResult, AgentResult
+from backend.agents.ingestion import IngestionAgent
+from backend.agents.metadata import MetadataAgent
+from backend.agents.checksum import ChecksumAgent
+from backend.agents.filesystem import FilesystemAgent
+from backend.agents.ocr_module import OCRAgent
+from backend.agents.alerting import AlertingAgent
 
 app = FastAPI(title="ISO Guardian API")
 
-# Add CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,22 +23,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Prometheus metrics setup
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
-ISO_ANALYZED_TOTAL = Counter('iso_analyzed_total', 'Total number of ISOs analyzed')
-ISO_STATUS_COUNTER = Counter('iso_status_total', 'Count of ISOs by status', ['status'])
+# Prometheus Metrics
+ISO_SCAN_TOTAL = Counter('iso_scan_total', 'Total number of ISOs scanned')
 ISO_RISK_SCORE = Gauge('iso_risk_score', 'Risk score of the last analyzed ISO')
+ISO_CHECKSUM_MATCH = Gauge('iso_checksum_match', '1 if checksum matches, 0 otherwise')
+ISO_SIGNATURE_VALID = Gauge('iso_signature_valid', '1 if RPM signature valid, 0 otherwise')
+ISO_SUSPICIOUS_FILES = Gauge('iso_suspicious_files', 'Count of suspicious files found in last scan')
+ISO_OCR_SUSPICIOUS_WORDS = Gauge('iso_ocr_suspicious_words', 'Count of suspicious words found by OCR')
 
-UPLOAD_DIR = "../data/uploads"
-MANIFEST_PATH = "manifest.json"
+UPLOAD_DIR = "/app/data/uploads" if os.getenv("DATABASE_URL") else "../data/uploads"
+EXTRACT_DIR = "/app/data/extracted" if os.getenv("DATABASE_URL") else "../data/extracted"
+MANIFEST_PATH = "trusted_manifest.json"
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(EXTRACT_DIR, exist_ok=True)
 
-@app.post("/api/analyze")
-async def analyze_iso(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    ISO_ANALYZED_TOTAL.inc()
+@app.get("/")
+def health_check():
+    return {"status": "ok"}
+
+@app.post("/scan")
+async def scan_iso(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    ISO_SCAN_TOTAL.inc()
     
     file_path = os.path.join(UPLOAD_DIR, file.filename)
     
@@ -55,48 +64,88 @@ async def analyze_iso(file: UploadFile = File(...), db: Session = Depends(get_db
     checksum = ChecksumAgent(file_path, MANIFEST_PATH).analyze()
     
     # 4. Filesystem
-    filesystem = FilesystemAgent(file_path).analyze()
+    fs_extract_dir = os.path.join(EXTRACT_DIR, file.filename + "_ext")
+    filesystem = FilesystemAgent(file_path, fs_extract_dir).analyze()
     
-    # 5. Alerting
-    alerting = AlertingAgent(ingestion, metadata, checksum, filesystem).analyze()
+    # 5. Optional OCR
+    ocr = OCRAgent(filesystem.get("extracted_images", [])).analyze()
+    
+    # 6. Alerting / Risk Score
+    alerting = AlertingAgent(ingestion, metadata, checksum, filesystem, ocr).analyze()
 
     status = alerting["status"]
     risk_score = alerting["risk_score"]
+    severity = alerting["severity"]
 
     # Update metrics
-    ISO_STATUS_COUNTER.labels(status=status).inc()
     ISO_RISK_SCORE.set(risk_score)
+    ISO_CHECKSUM_MATCH.set(1 if checksum.get("status") == "pass" else 0)
+    ISO_SIGNATURE_VALID.set(0 if filesystem.get("rpm_signature_failure") else 1)
+    ISO_SUSPICIOUS_FILES.set(len(filesystem.get("suspicious_files", [])))
+    ISO_OCR_SUSPICIOUS_WORDS.set(len(ocr.get("found_words", [])))
 
     # Save to database
-    db_result = ISOAnalysisResult(
-        filename=file.filename,
-        checksum=checksum.get("calculated_sha256", "UNKNOWN"),
-        status=status,
-        risk_score=risk_score,
-        details={
-            "ingestion": ingestion,
-            "metadata": metadata,
-            "checksum": checksum,
-            "filesystem": filesystem,
-            "alerting": alerting
-        }
+    db_scan = ScanResult(
+        file_name=file.filename,
+        file_hash=checksum.get("calculated_sha256", "UNKNOWN"),
+        final_status=status,
+        severity=severity,
+        risk_score=risk_score
     )
-    db.add(db_result)
+    db.add(db_scan)
     db.commit()
-    db.refresh(db_result)
+    db.refresh(db_scan)
 
-    # Clean up upload
-    os.remove(file_path)
-
-    return {
-        "id": db_result.id,
-        "filename": db_result.filename,
-        "status": status,
-        "risk_score": risk_score,
-        "details": db_result.details
+    agents_data = {
+        "Ingestion": ingestion,
+        "Metadata": metadata,
+        "Checksum": checksum,
+        "Filesystem": filesystem,
+        "OCR": ocr,
+        "Alerting": alerting
     }
 
-@app.get("/api/results")
-def get_results(db: Session = Depends(get_db)):
-    results = db.query(ISOAnalysisResult).order_by(ISOAnalysisResult.id.desc()).all()
-    return results
+    for agent_name, result in agents_data.items():
+        db_agent = AgentResult(
+            scan_id=db_scan.scan_id,
+            agent_name=agent_name,
+            status="done",
+            result_json=result
+        )
+        db.add(db_agent)
+    
+    db.commit()
+
+    # Clean up
+    try:
+        os.remove(file_path)
+        shutil.rmtree(fs_extract_dir, ignore_errors=True)
+    except:
+        pass
+
+    return {
+        "scan_id": db_scan.scan_id,
+        "file_name": db_scan.file_name,
+        "final_status": status,
+        "severity": severity,
+        "risk_score": risk_score,
+        "agents": agents_data
+    }
+
+@app.get("/scans")
+def get_scans(db: Session = Depends(get_db)):
+    scans = db.query(ScanResult).order_by(ScanResult.scan_id.desc()).all()
+    return scans
+
+@app.get("/scan/{scan_id}")
+def get_scan(scan_id: int, db: Session = Depends(get_db)):
+    scan = db.query(ScanResult).filter(ScanResult.scan_id == scan_id).first()
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    
+    agents = db.query(AgentResult).filter(AgentResult.scan_id == scan_id).all()
+    
+    return {
+        "scan": scan,
+        "agents": {a.agent_name: a.result_json for a in agents}
+    }

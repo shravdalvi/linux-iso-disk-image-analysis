@@ -1,77 +1,85 @@
 class AlertingAgent:
-    def __init__(self, ingestion_res, metadata_res, checksum_res, fs_res):
+    def __init__(self, ingestion_res, metadata_res, checksum_res, fs_res, ocr_res):
         self.ingestion = ingestion_res
         self.metadata = metadata_res
         self.checksum = checksum_res
         self.fs = fs_res
+        self.ocr = ocr_res
 
     def analyze(self):
+        # Risk score starts at 0, goes up to 100
         score = 0
-        status = "UNKNOWN"
         reasons = []
 
-        # Start with 100 and deduct for issues
-        if self.ingestion.get("success"):
-            score += 20
-        else:
-            reasons.append("Failed ingestion (Not a valid readable ISO)")
+        # Ingestion Check
+        if not self.ingestion.get("success") or self.ingestion.get("fake_iso_detected"):
+            score += 40
+            reasons.append("Invalid ISO or fake extension detected")
 
-        if self.metadata.get("success"):
-            score += 20
-            if not self.metadata.get("is_bootable"):
-                score -= 10
-                reasons.append("ISO is not bootable")
-        else:
-            reasons.append("Failed metadata analysis")
+        # Metadata Check
+        if self.metadata.get("suspicious_metadata"):
+            score += 10
+            reasons.append("Metadata warning (e.g., not bootable)")
 
-        if self.checksum.get("success"):
-            if self.checksum.get("manifest_match"):
-                score += 40
-            else:
-                if self.checksum.get("found_in_manifest"):
-                    score -= 50
-                    reasons.append("Checksum MISMATCH with manifest (Tampered)")
-                else:
-                    score += 10
-                    reasons.append("Checksum not found in trusted manifest")
-        else:
-            reasons.append("Failed checksum analysis")
+        # Checksum Check
+        c_status = self.checksum.get("status")
+        if c_status == "fail":
+            score += 50
+            reasons.append("Checksum mismatch (Tampered)")
+        elif c_status == "unknown":
+            score += 10
+            reasons.append("No trusted checksum found in manifest")
 
-        if self.fs.get("success"):
-            score += 20
+        # Filesystem Check
+        if not self.fs.get("success"):
+            score += 35
+            reasons.append("Filesystem inspection failure")
+        else:
             if len(self.fs.get("suspicious_files", [])) > 0:
-                score -= 60
-                reasons.append(f"Suspicious files found: {self.fs.get('suspicious_files')}")
-            
-            # Missing critical directories
-            if not self.fs.get("has_efi") and not self.fs.get("has_isolinux"):
-                score -= 10
-                reasons.append("Missing boot directories (EFI/isolinux)")
-        else:
-            reasons.append("Failed filesystem analysis")
+                score += 20
+                reasons.append(f"Suspicious file found: {self.fs.get('suspicious_files')}")
+            if self.fs.get("rpm_signature_failure"):
+                score += 30
+                reasons.append("RPM signature failure")
+
+        # OCR Check
+        if self.ocr.get("suspicious_text_found"):
+            score += 15
+            reasons.append(f"OCR suspicious text found: {self.ocr.get('found_words')}")
 
         # Clamp score between 0 and 100
         score = max(0, min(100, score))
 
-        # Classify
-        if score == 100 and self.checksum.get("manifest_match"):
+        # Determine Final Status
+        status = "UNKNOWN"
+        severity = "INFO"
+
+        if score == 0 and c_status == "pass":
             status = "TRUSTED"
-        elif score >= 80 and not self.checksum.get("found_in_manifest") and len(self.fs.get("suspicious_files", [])) == 0:
+            severity = "LOW"
+        elif score <= 10 and c_status == "unknown" and not self.fs.get("suspicious_files"):
             status = "LIKELY_SAFE_BUT_UNVERIFIED"
-        elif score < 40 or len(self.fs.get("suspicious_files", [])) > 0:
-            status = "SUSPICIOUS"
-            if self.checksum.get("found_in_manifest") and not self.checksum.get("manifest_match"):
-                status = "MODIFIED_OR_FABRICATED"
-        elif score == 0:
+            severity = "LOW"
+        elif score >= 50 and c_status == "fail":
+            status = "MODIFIED_OR_FABRICATED"
+            severity = "CRITICAL"
+        elif self.ingestion.get("fake_iso_detected"):
             status = "FABRICATED_OR_INVALID"
+            severity = "CRITICAL"
+        elif score >= 40:
+            status = "SUSPICIOUS"
+            severity = "HIGH"
         elif not self.ingestion.get("success") or not self.metadata.get("success"):
             status = "CORRUPTED"
+            severity = "HIGH"
         else:
             status = "UNKNOWN"
+            severity = "MEDIUM"
 
         return {
             "agent": "Alerting",
             "risk_score": score,
             "status": status,
+            "severity": severity,
             "reasons": reasons
         }

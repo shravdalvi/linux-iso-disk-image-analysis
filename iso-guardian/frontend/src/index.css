@@ -1,0 +1,139 @@
+:root {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent: #3b82f6;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+header h1 { margin-bottom: 0.5rem; }
+header p { color: var(--text-muted); margin-bottom: 1.5rem; }
+
+nav {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+button, .button-link {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid #334155;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 1rem;
+}
+
+button:hover, .button-link:hover {
+  background: #334155;
+}
+
+.primary-btn {
+  background: var(--accent);
+  color: white;
+  width: 100%;
+  padding: 1rem;
+  font-weight: bold;
+  margin-top: 1rem;
+}
+
+.primary-btn:hover { background: #2563eb; }
+.primary-btn:disabled { background: #475569; cursor: not-allowed; }
+
+.card {
+  background: var(--card);
+  padding: 2rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.upload-box {
+  border: 2px dashed #475569;
+  padding: 3rem;
+  text-align: center;
+  border-radius: 8px;
+}
+
+.loader {
+  border: 4px solid rgba(255,255,255,0.1);
+  border-top: 4px solid var(--accent);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 1rem auto;
+}
+
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.badges {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 99px;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+.badge.big {
+  font-size: 1.1rem;
+  padding: 0.5rem 1rem;
+}
+
+.badge.low { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+.badge.medium { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+.badge.high, .badge.critical { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+.badge.neutral { background: rgba(148, 163, 184, 0.2); color: var(--text-muted); }
+
+.agents-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.agent-card pre {
+  background: #0f172a;
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+
+.scans-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.scans-table th, .scans-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #334155;
+}

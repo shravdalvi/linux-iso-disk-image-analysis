@@ -1,5 +1,6 @@
 import os
 import mimetypes
+import subprocess
 
 class IngestionAgent:
     def __init__(self, filepath):
@@ -14,21 +15,33 @@ class IngestionAgent:
         is_readable = os.access(self.filepath, os.R_OK)
         
         _, ext = os.path.splitext(filename)
-        mime_type, _ = mimetypes.guess_type(self.filepath)
         
-        valid_iso = ext.lower() == '.iso'
+        valid_iso_ext = ext.lower() == '.iso'
         
         # Simple size check: an ISO should be at least 1MB
         is_large_enough = size_bytes > 1024 * 1024
         
+        # Check using 'file' command to detect fake files renamed as .iso
+        file_cmd_output = ""
+        try:
+            result = subprocess.run(["file", "-b", self.filepath], capture_output=True, text=True, timeout=5)
+            file_cmd_output = result.stdout.strip().lower()
+        except Exception:
+            pass
+
+        looks_like_iso = "iso 9660" in file_cmd_output or "boot sector" in file_cmd_output
+
+        fake_iso_detected = valid_iso_ext and not looks_like_iso
+
         return {
             "agent": "Ingestion",
             "filename": filename,
             "size_bytes": size_bytes,
             "is_readable": is_readable,
             "extension": ext,
-            "mime_type": mime_type,
-            "valid_iso_extension": valid_iso,
+            "valid_iso_extension": valid_iso_ext,
             "is_large_enough": is_large_enough,
-            "success": is_readable and valid_iso and is_large_enough
+            "fake_iso_detected": fake_iso_detected,
+            "file_command_output": file_cmd_output,
+            "success": is_readable and is_large_enough and looks_like_iso
         }

@@ -8,37 +8,41 @@ class MetadataAgent:
     def analyze(self):
         metadata = {
             "agent": "Metadata",
-            "file_output": "",
             "is_bootable": False,
             "volume_id": "Unknown",
-            "success": False
+            "suspicious_metadata": False,
+            "success": False,
+            "warnings": []
         }
 
         if not os.path.exists(self.filepath):
             return metadata
 
         try:
-            # Check using 'file' command
-            result = subprocess.run(["file", self.filepath], capture_output=True, text=True, timeout=10)
-            file_output = result.stdout.strip()
-            metadata["file_output"] = file_output
+            # Check using 'xorriso' command
+            xorriso_result = subprocess.run(["xorriso", "-indev", self.filepath, "-pvd_info"], capture_output=True, text=True, timeout=10)
+            output = xorriso_result.stdout
 
-            if "bootable" in file_output.lower():
-                metadata["is_bootable"] = True
-
-            # If xorriso is installed, we can get volume ID
+            for line in output.split('\n'):
+                if "Volume Id" in line:
+                    metadata["volume_id"] = line.split(':', 1)[1].strip()
+                if "El Torito" in line or "boot" in line.lower():
+                    metadata["is_bootable"] = True
+            
+            # Using 7z l to check metadata basics
             try:
-                xorriso_result = subprocess.run(["xorriso", "-indev", self.filepath, "-pvd_info"], capture_output=True, text=True, timeout=10)
-                for line in xorriso_result.stdout.split('\n'):
-                    if "Volume Id" in line:
-                        metadata["volume_id"] = line.split(':', 1)[1].strip()
-            except FileNotFoundError:
-                metadata["volume_id"] = "xorriso not installed"
+                z_result = subprocess.run(["7z", "l", self.filepath], capture_output=True, text=True, timeout=10)
+                if "Type = Iso" in z_result.stdout:
+                    metadata["success"] = True
+            except:
+                pass
 
-            if "ISO 9660" in file_output:
-                metadata["success"] = True
+            if not metadata["is_bootable"]:
+                metadata["warnings"].append("ISO does not appear to be bootable.")
+                metadata["suspicious_metadata"] = True
 
         except Exception as e:
             metadata["error"] = str(e)
+            metadata["warnings"].append("Failed to extract metadata")
 
         return metadata

@@ -1,25 +1,45 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Float, JSON, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
+import os
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///../data/iso_analysis.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///../data/reports/iso_analysis.db")
 
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    DATABASE_URL, connect_args={"check_same_thread": False}
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
-class ISOAnalysisResult(Base):
-    __tablename__ = "iso_analysis_results"
+class ScanResult(Base):
+    __tablename__ = "scans"
+
+    scan_id = Column(Integer, primary_key=True, index=True)
+    file_name = Column(String, index=True)
+    file_hash = Column(String, index=True)
+    final_status = Column(String)
+    severity = Column(String)
+    risk_score = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class AgentResult(Base):
+    __tablename__ = "agent_results"
 
     id = Column(Integer, primary_key=True, index=True)
-    filename = Column(String, index=True)
-    checksum = Column(String, index=True)
-    status = Column(String)  # TRUSTED, SUSPICIOUS, etc.
-    risk_score = Column(Float)
-    details = Column(JSON)   # Detailed results from agents
+    scan_id = Column(Integer, index=True)
+    agent_name = Column(String)
+    status = Column(String)
+    result_json = Column(JSON)
+
+class Alert(Base):
+    __tablename__ = "alerts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scan_id = Column(Integer, index=True)
+    alert_type = Column(String)
+    message = Column(String)
 
 Base.metadata.create_all(bind=engine)
 
