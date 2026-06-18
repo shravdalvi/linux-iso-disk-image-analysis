@@ -1,0 +1,10 @@
+{
+    "fedora-workstation-live-x86_64-40-1.14.iso": {
+        "sha256": "81c0021ce5f5b61f8bc6df900b9795e1eb9b46eec102c710f63ceeeaf4db07ce",
+        "description": "Fedora 40 Workstation Live x86_64"
+    },
+    "fedora-server-dvd-x86_64-40-1.14.iso": {
+        "sha256": "a3f5a09b30c1e8093d62325bfeb1a0fa2a9121a9a83688cd64757049cf1f038f",
+        "description": "Fedora 40 Server DVD x86_64"
+    }
+}

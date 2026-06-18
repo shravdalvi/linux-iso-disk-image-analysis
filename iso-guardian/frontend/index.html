@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISO Guardian - Integrity Verification</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ISO Guardian</h1>
+            <p>Agent-Based ISO Integrity Verification & Tamper Detection</p>
+        </header>
+        
+        <main>
+            <section class="upload-section">
+                <h2>Upload ISO Image</h2>
+                <div class="upload-box" id="upload-box">
+                    <input type="file" id="iso-upload" accept=".iso">
+                    <label for="iso-upload" class="upload-label">
+                        <span class="icon">📁</span>
+                        <span class="text">Click to select or drag and drop an ISO file</span>
+                    </label>
+                </div>
+                <button id="analyze-btn" disabled>Analyze ISO</button>
+                <div id="loading" class="hidden">
+                    <div class="spinner"></div>
+                    <p>Agents are analyzing...</p>
+                </div>
+            </section>
+
+            <section class="results-section hidden" id="results-section">
+                <h2>Analysis Results</h2>
+                <div class="status-card" id="status-card">
+                    <h3 id="risk-status">STATUS</h3>
+                    <p>Risk Score: <span id="risk-score">0</span>/100</p>
+                </div>
+                
+                <div class="agent-results">
+                    <h3>Agent Details</h3>
+                    <div id="agent-details"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
