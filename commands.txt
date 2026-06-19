@@ -6,3 +6,5 @@ npm install
 npm run dev
 streamlit run app.py
 python app.py
+
+http://localhost:3001/dashboards

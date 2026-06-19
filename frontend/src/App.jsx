@@ -1,6 +1,110 @@
 import { useState, useEffect } from 'react';
 import './index.css';
 
+const BooleanBadge = ({ label, value }) => (
+  <div className={`bool-badge ${value ? 'true' : 'false'}`}>
+    <span className="bool-label">{label}</span>
+    <span className="bool-value">{value ? '✓ Yes' : '✗ No'}</span>
+  </div>
+);
+
+const DataRow = ({ label, value }) => (
+  <div className="data-row">
+    <span className="data-label">{label}</span>
+    <span className={`data-value ${!value ? 'muted' : ''}`}>{value || 'N/A'}</span>
+  </div>
+);
+
+const ArrayList = ({ label, items }) => (
+  <div className="array-list">
+    <span className="data-label">{label}</span>
+    {items && items.length > 0 ? (
+      <ul>
+        {items.map((item, i) => <li key={i}>{item}</li>)}
+      </ul>
+    ) : (
+      <span className="data-value muted" style={{ display: 'block', marginTop: '0.5rem' }}>None</span>
+    )}
+  </div>
+);
+
+const AgentDetails = ({ agentName, data }) => {
+  if (agentName === 'Ingestion') {
+    return (
+      <div className="agent-details">
+        <DataRow label="Filename" value={data.filename} />
+        <DataRow label="Size" value={data.size_bytes ? `${(data.size_bytes / 1024 / 1024).toFixed(2)} MB` : 'Unknown'} />
+        <DataRow label="Extension" value={data.extension} />
+        <div className="badge-grid">
+          <BooleanBadge label="Readable" value={data.is_readable} />
+          <BooleanBadge label="Valid Ext" value={data.valid_iso_extension} />
+          <BooleanBadge label="Large Enough" value={data.is_large_enough} />
+          <BooleanBadge label="Fake ISO" value={data.fake_iso_detected} />
+        </div>
+        {data.file_command_output && (
+          <div className="command-output">
+            <span className="data-label">File Command Output</span>
+            <code>{data.file_command_output}</code>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  if (agentName === 'Metadata') {
+    return (
+      <div className="agent-details">
+        <DataRow label="Volume ID" value={data.volume_id} />
+        <div className="badge-grid">
+          <BooleanBadge label="Bootable" value={data.is_bootable} />
+          <BooleanBadge label="Suspicious" value={data.suspicious_metadata} />
+        </div>
+        <ArrayList label="Warnings" items={data.warnings} />
+      </div>
+    );
+  }
+  
+  if (agentName === 'Checksum') {
+    return (
+      <div className="agent-details">
+        <DataRow label="SHA256" value={data.calculated_sha256} />
+        <DataRow label="Status" value={data.status} />
+      </div>
+    );
+  }
+  
+  if (agentName === 'Filesystem') {
+    return (
+      <div className="agent-details">
+        <div className="badge-grid">
+          <BooleanBadge label="RPM Sig Failure" value={data.rpm_signature_failure} />
+        </div>
+        <ArrayList label="Missing Folders" items={data.missing_folders} />
+        <ArrayList label="Suspicious Files" items={data.suspicious_files} />
+        <ArrayList label="Extracted Images" items={data.extracted_images} />
+      </div>
+    );
+  }
+  
+  return (
+    <div className="agent-details">
+      <pre style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', overflowX: 'auto' }}>
+        {JSON.stringify(data, null, 2)}
+      </pre>
+    </div>
+  );
+};
+
+const getAgentIcon = (name) => {
+  switch (name) {
+    case 'Ingestion': return '📥';
+    case 'Metadata': return '📋';
+    case 'Checksum': return '🔢';
+    case 'Filesystem': return '📁';
+    default: return '🤖';
+  }
+};
+
 function App() {
   const [file, setFile] = useState(null);
   const [scanning, setScanning] = useState(false);
@@ -134,8 +238,11 @@ function App() {
           <div className="agents-grid">
             {Object.entries(result.agents).map(([agentName, data]) => (
               <div className="card agent-card" key={agentName}>
-                <h3>{agentName} Agent</h3>
-                <pre>{JSON.stringify(data, null, 2)}</pre>
+                <div className="agent-header">
+                  <div className="agent-icon">{getAgentIcon(agentName)}</div>
+                  <h3>{agentName} Agent</h3>
+                </div>
+                <AgentDetails agentName={agentName} data={data} />
               </div>
             ))}
           </div>
