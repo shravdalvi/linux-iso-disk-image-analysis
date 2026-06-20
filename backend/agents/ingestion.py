@@ -18,8 +18,8 @@ class IngestionAgent:
         
         valid_iso_ext = ext.lower() == '.iso'
         
-        # Simple size check: an ISO should be at least 1MB
-        is_large_enough = size_bytes > 1024 * 1024
+        # Simple size check: an ISO should be at least 10KB
+        is_large_enough = size_bytes > 10 * 1024
         
         # Check using 'file' command to detect fake files renamed as .iso
         file_cmd_output = ""
