@@ -25,3 +25,12 @@ Grafana:     http://localhost:3001
 
 git pull origin main --no-rebase
 git push origin main
+
+
+(With Docker)
+
+You first create an image (a packaged environment):
+docker compose build
+
+Then run containers from those images:
+docker compose up
