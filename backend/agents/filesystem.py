@@ -77,4 +77,13 @@ class FilesystemAgent:
         except Exception as e:
             result["error"] = str(e)
 
+        if not result["success"]:
+            result["explanation"] = "Filesystem extraction failed or encountered an error."
+        elif result["rpm_signature_failure"]:
+            result["explanation"] = "Filesystem check found RPM packages with invalid or failing signatures. This is a strong indicator of tampering."
+        elif result["suspicious_files"]:
+            result["explanation"] = f"Filesystem check found suspicious files ({', '.join(result['suspicious_files'])})."
+        else:
+            result["explanation"] = "Filesystem check passed. No suspicious files or invalid RPM signatures detected."
+
         return result

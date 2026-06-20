@@ -45,4 +45,11 @@ class MetadataAgent:
             metadata["error"] = str(e)
             metadata["warnings"].append("Failed to extract metadata")
 
+        if metadata["suspicious_metadata"]:
+            metadata["explanation"] = "Metadata agent found suspicious elements, such as missing bootability."
+        elif not metadata["success"]:
+            metadata["explanation"] = "Failed to properly extract or verify metadata using 7z/xorriso."
+        else:
+            metadata["explanation"] = f"Metadata is clean. Volume ID: {metadata['volume_id']}. ISO is bootable."
+
         return metadata

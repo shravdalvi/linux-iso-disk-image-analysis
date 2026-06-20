@@ -1,10 +1,22 @@
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python app.py
-npm install
 npm run dev
-streamlit run app.py
-python app.py
 
 http://localhost:3001/dashboards
+
+# to run backend
+cd ~/Desktop/linux-iso-disk-image-analysis
+sudo docker compose up -d backend
+
+
+#to run frontend
+cd ~/Desktop/linux-iso-disk-image-analysis
+sudo docker compose up -d frontend
+
+
+
+Frontend:    http://localhost:3002
+Backend:     http://localhost:8000/docs
+Prometheus:  http://localhost:9092
+Grafana:     http://localhost:3001

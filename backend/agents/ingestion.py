@@ -33,6 +33,18 @@ class IngestionAgent:
 
         fake_iso_detected = valid_iso_ext and not looks_like_iso
 
+        explanation = ""
+        if fake_iso_detected:
+            explanation = "The file has a .iso extension but its content format does not match ISO 9660 or boot sector standards."
+        elif not valid_iso_ext:
+            explanation = f"The file has an invalid extension: '{ext}'."
+        elif not is_large_enough:
+            explanation = "The file is too small to be a valid ISO image."
+        elif not is_readable:
+            explanation = "The file cannot be read from the disk."
+        else:
+            explanation = "The file is successfully ingested, has valid ISO 9660 structure, proper size, and extension."
+
         return {
             "agent": "Ingestion",
             "filename": filename,
@@ -43,5 +55,6 @@ class IngestionAgent:
             "is_large_enough": is_large_enough,
             "fake_iso_detected": fake_iso_detected,
             "file_command_output": file_cmd_output,
-            "success": is_readable and is_large_enough and looks_like_iso
+            "success": is_readable and is_large_enough and looks_like_iso,
+            "explanation": explanation
         }

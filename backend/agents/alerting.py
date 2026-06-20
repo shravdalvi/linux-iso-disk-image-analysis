@@ -47,8 +47,10 @@ class AlertingAgent:
             score += 15
             reasons.append(f"OCR suspicious text found: {self.ocr.get('found_words')}")
 
-        # Clamp score between 0 and 100
-        score = max(0, min(100, score))
+        # Math calculation for percentage rating
+        MAX_POSSIBLE_SCORE = 200
+        raw_score = score
+        risk_percentage = min(100.0, round((raw_score / MAX_POSSIBLE_SCORE) * 100.0, 2))
 
         # Determine Final Status
         status = "UNKNOWN"
@@ -76,10 +78,16 @@ class AlertingAgent:
             status = "UNKNOWN"
             severity = "MEDIUM"
 
+        explanation = "Alerting agent analyzed results from all previous agents. Penalty points are assigned for each failure or suspicious artifact found."
+        formula = "(Total Penalty Points / Maximum Possible Points) * 100"
+
         return {
             "agent": "Alerting",
             "risk_score": score,
+            "risk_percentage": risk_percentage,
             "status": status,
             "severity": severity,
-            "reasons": reasons
+            "reasons": reasons,
+            "explanation": explanation,
+            "formula_used": formula
         }

@@ -45,4 +45,11 @@ class ChecksumAgent:
         except Exception as e:
             result["error"] = str(e)
 
+        if result["status"] == "pass":
+            result["explanation"] = "Checksum matches the trusted manifest exactly. The ISO is verified."
+        elif result["status"] == "fail":
+            result["explanation"] = "Checksum DOES NOT match the trusted manifest! The ISO may have been tampered with."
+        else:
+            result["explanation"] = "No matching entry found in the trusted manifest. The ISO is unverified."
+
         return result

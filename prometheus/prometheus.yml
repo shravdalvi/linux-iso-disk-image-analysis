@@ -2,7 +2,7 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: 'iso_guardian_backend'
+  - job_name: 'iso-guardian-backend'
+    metrics_path: /metrics/
     static_configs:
-      - targets: ['host.docker.internal:8000']
-        # If running Prometheus natively (not in Docker), use 'localhost:8000'
+      - targets: ['backend:8000']

@@ -42,4 +42,11 @@ class OCRAgent:
                 # ignore OCR errors on specific files
                 pass
 
+        if not result["ocr_scanned"]:
+            result["explanation"] = "No images or PDFs were extracted for OCR scanning."
+        elif result["suspicious_text_found"]:
+            result["explanation"] = f"OCR module detected suspicious words: {', '.join(result['found_words'])}. This could indicate a modified boot screen or documentation."
+        else:
+            result["explanation"] = "OCR module scanned extracted images and found no suspicious keywords."
+
         return result
