@@ -168,11 +168,18 @@ function App() {
         .catch(err => console.error(err));
     }
     
-    // Fetch test files on mount
-    fetch('http://localhost:8000/test-files')
-      .then(res => res.json())
-      .then(data => setTestFiles(data))
-      .catch(err => console.error(err));
+    const fetchTestFiles = () => {
+      fetch('http://localhost:8000/test-files')
+        .then(res => res.json())
+        .then(data => setTestFiles(data))
+        .catch(err => console.error(err));
+    };
+
+    // Fetch immediately and set up polling for realtime updates
+    fetchTestFiles();
+    const intervalId = setInterval(fetchTestFiles, 2000);
+
+    return () => clearInterval(intervalId);
   }, [view]);
 
   const handleFileChange = (e) => {
