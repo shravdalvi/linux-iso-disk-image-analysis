@@ -59,27 +59,33 @@ class AlertingAgent:
         if score == 0 and c_status == "pass":
             status = "TRUSTED"
             severity = "LOW"
+            explanation = "The ISO matches the trusted version and no suspicious activity was detected."
         elif score <= 10 and c_status == "unknown" and not self.fs.get("suspicious_files"):
             status = "LIKELY_SAFE_BUT_UNVERIFIED"
             severity = "LOW"
+            explanation = "The ISO does not show dangerous signs, but it is not present in the trusted manifest, so the system cannot fully confirm its authenticity."
         elif score >= 50 and c_status == "fail":
             status = "MODIFIED_OR_FABRICATED"
             severity = "CRITICAL"
+            explanation = "The ISO does not match the trusted version and may have been altered, replaced, or maliciously modified."
         elif self.ingestion.get("fake_iso_detected"):
-            status = "FABRICATED_OR_INVALID"
+            status = "MODIFIED_OR_FABRICATED"
             severity = "CRITICAL"
+            explanation = "The file claims to be an ISO but does not behave like one internally."
         elif score >= 40:
             status = "SUSPICIOUS"
             severity = "HIGH"
+            explanation = "The ISO may not be malicious, but it has enough unusual indicators that it should be reviewed before use."
         elif not self.ingestion.get("success") or not self.metadata.get("success"):
             status = "CORRUPTED"
             severity = "HIGH"
+            explanation = "The file may be damaged, incomplete, or intentionally malformed."
         else:
             status = "UNKNOWN"
             severity = "MEDIUM"
+            explanation = "The ISO may not be malicious, but it has enough unusual indicators that it should be reviewed before use."
 
-        explanation = "Alerting agent analyzed results from all previous agents. Penalty points are assigned for each failure or suspicious artifact found."
-        formula = "(Total Penalty Points / Maximum Possible Points) * 100"
+        formula = "Risk Percentage = Total Penalty Points ÷ 200 × 100"
 
         return {
             "agent": "Alerting",

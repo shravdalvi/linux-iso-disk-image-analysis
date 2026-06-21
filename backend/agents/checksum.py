@@ -46,10 +46,10 @@ class ChecksumAgent:
             result["error"] = str(e)
 
         if result["status"] == "pass":
-            result["explanation"] = "Checksum matches the trusted manifest exactly. The ISO is verified."
+            result["explanation"] = "The uploaded ISO matches the trusted version exactly."
         elif result["status"] == "fail":
-            result["explanation"] = "Checksum DOES NOT match the trusted manifest! The ISO may have been tampered with."
+            result["explanation"] = "The ISO does not match the trusted version. This is a strong tampering signal."
         else:
-            result["explanation"] = "No matching entry found in the trusted manifest. The ISO is unverified."
+            result["explanation"] = "The ISO is not in the trusted manifest, so it cannot be verified."
 
         return result

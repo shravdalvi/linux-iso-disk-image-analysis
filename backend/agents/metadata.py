@@ -46,10 +46,10 @@ class MetadataAgent:
             metadata["warnings"].append("Failed to extract metadata")
 
         if metadata["suspicious_metadata"]:
-            metadata["explanation"] = "Metadata agent found suspicious elements, such as missing bootability."
+            metadata["explanation"] = "The ISO structure or boot details look unusual."
         elif not metadata["success"]:
-            metadata["explanation"] = "Failed to properly extract or verify metadata using 7z/xorriso."
+            metadata["explanation"] = "The system could not properly inspect the ISO contents."
         else:
-            metadata["explanation"] = f"Metadata is clean. Volume ID: {metadata['volume_id']}. ISO is bootable."
+            metadata["explanation"] = f"The ISO is built like a proper Linux installation image. Volume ID: {metadata['volume_id']}."
 
         return metadata

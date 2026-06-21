@@ -78,12 +78,12 @@ class FilesystemAgent:
             result["error"] = str(e)
 
         if not result["success"]:
-            result["explanation"] = "Filesystem extraction failed or encountered an error."
+            result["explanation"] = "The system could not properly inspect the ISO contents."
         elif result["rpm_signature_failure"]:
-            result["explanation"] = "Filesystem check found RPM packages with invalid or failing signatures. This is a strong indicator of tampering."
+            result["explanation"] = "Internal Linux packages may have been modified or are not trusted."
         elif result["suspicious_files"]:
-            result["explanation"] = f"Filesystem check found suspicious files ({', '.join(result['suspicious_files'])})."
+            result["explanation"] = f"Risky files or keywords were found inside the ISO ({', '.join(result['suspicious_files'])})."
         else:
-            result["explanation"] = "Filesystem check passed. No suspicious files or invalid RPM signatures detected."
+            result["explanation"] = "No risky files, keywords, or modified packages were found inside the ISO."
 
         return result

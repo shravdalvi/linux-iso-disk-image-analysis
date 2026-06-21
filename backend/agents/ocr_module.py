@@ -45,8 +45,8 @@ class OCRAgent:
         if not result["ocr_scanned"]:
             result["explanation"] = "No images or PDFs were extracted for OCR scanning."
         elif result["suspicious_text_found"]:
-            result["explanation"] = f"OCR module detected suspicious words: {', '.join(result['found_words'])}. This could indicate a modified boot screen or documentation."
+            result["explanation"] = f"Images or PDFs contain suspicious words or messages: {', '.join(result['found_words'])}."
         else:
-            result["explanation"] = "OCR module scanned extracted images and found no suspicious keywords."
+            result["explanation"] = "No suspicious text was found in any extracted images or PDFs."
 
         return result
