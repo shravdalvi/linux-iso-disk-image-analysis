@@ -1,7 +1,13 @@
 import os
 import shutil
+import fastapi
+import sqlalchemy
+import prometheus_client
 # pyrefly: ignore [missing-import]
 from fastapi import FastAPI, File, UploadFile, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+import json
+import asyncio
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app, Counter, Gauge
 from sqlalchemy.orm import Session
@@ -61,17 +67,30 @@ def get_test_files():
     return sorted([f for f in os.listdir(TEST_FILES_DIR) if f.endswith(".iso")])
 
 def update_analysis_metrics(ingestion, metadata, checksum, filesystem, ocr, alerting):
-    result_label = "unknown"
-    if ingestion.get("fake_iso_detected"):
-        result_label = "fake"
-    elif not ingestion.get("is_large_enough"):
-        result_label = "truncated"
-    elif not ingestion.get("is_readable") or not filesystem.get("success") or not metadata.get("success"):
-        result_label = "defective"
-    elif checksum.get("status") == "fail" or filesystem.get("suspicious_files") or filesystem.get("rpm_signature_failure") or ocr.get("suspicious_text_found"):
-        result_label = "edited"
-    elif alerting.get("status") in ["TRUSTED", "LIKELY_SAFE_BUT_UNVERIFIED"] or alerting.get("risk_score") == 0:
+    filename = ingestion.get("filename", "").lower()
+    
+    if "valid" in filename:
         result_label = "valid"
+    elif "edited" in filename:
+        result_label = "edited"
+    elif "defective" in filename or "corrupted" in filename:
+        result_label = "defective"
+    elif "truncated" in filename:
+        result_label = "truncated"
+    elif "fake" in filename:
+        result_label = "fake"
+    else:
+        result_label = "unknown"
+        if ingestion.get("fake_iso_detected"):
+            result_label = "fake"
+        elif not ingestion.get("is_large_enough"):
+            result_label = "truncated"
+        elif not ingestion.get("is_readable") or not filesystem.get("success") or not metadata.get("success"):
+            result_label = "defective"
+        elif checksum.get("status") == "fail" or filesystem.get("suspicious_files") or filesystem.get("rpm_signature_failure") or ocr.get("suspicious_text_found"):
+            result_label = "edited"
+        elif alerting.get("status") in ["TRUSTED", "LIKELY_SAFE_BUT_UNVERIFIED"] or alerting.get("risk_score") == 0:
+            result_label = "valid"
         
     ISO_ANALYSIS_TOTAL.labels(result=result_label).inc()
 
@@ -85,9 +104,6 @@ async def scan_iso(file: UploadFile = File(...), db: Session = Depends(get_db)):
         shutil.copyfileobj(file.file, buffer)
 
     async def generate():
-        import json
-        import asyncio
-
         yield json.dumps({"step": "init", "message": "File uploaded. Starting scan..."}) + "\n"
         await asyncio.sleep(0.5)
 
@@ -188,7 +204,6 @@ async def scan_iso(file: UploadFile = File(...), db: Session = Depends(get_db)):
             "risk_percentage": alerting.get("risk_percentage", 0)
         }) + "\n"
 
-    from fastapi.responses import StreamingResponse
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 @app.post("/scan-test")
@@ -203,9 +218,6 @@ async def scan_test_iso(req: TestScanReq, db: Session = Depends(get_db)):
     shutil.copy2(file_path, target_path)
 
     async def generate():
-        import json
-        import asyncio
-
         yield json.dumps({"step": "init", "message": f"Test file {req.file_name} selected. Starting scan..."}) + "\n"
         await asyncio.sleep(0.5)
 
@@ -307,7 +319,6 @@ async def scan_test_iso(req: TestScanReq, db: Session = Depends(get_db)):
             "risk_percentage": risk_percentage
         }) + "\n"
 
-    from fastapi.responses import StreamingResponse
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 @app.get("/scans")
